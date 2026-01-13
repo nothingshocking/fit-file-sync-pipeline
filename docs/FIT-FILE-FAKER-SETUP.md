@@ -6,7 +6,12 @@ This document explains how Fit-File-Faker is configured for use with this pipeli
 
 Fit-File-Faker is installed via pipx and stores its configuration at:
 ```
-C:\Users\chris\AppData\Local\FitFileFaker\config.json
+%LOCALAPPDATA%\FitFileFaker\config.json
+```
+
+Or typically:
+```
+C:\Users\YourUsername\AppData\Local\FitFileFaker\config.json
 ```
 
 ## Configuration File
@@ -21,14 +26,16 @@ notepad $env:LOCALAPPDATA\FitFileFaker\config.json
 {
   "garmin_username": "your_garmin_email@example.com",
   "garmin_password": "your_garmin_password",
-  "fit_files_dir": "C:\\Users\\chris\\fit-file-sync-pipeline\\data\\downloaded",
+  "fit_files_dir": "C:\\Users\\YourUsername\\fit-file-sync-pipeline\\data\\downloaded",
   "device_info": {
     "manufacturer": "garmin",
     "product": "edge1030",
-    "serial_number": "3982691993"
+    "serial_number": "1234567890"
   }
 }
 ```
+
+**Important:** Replace `YourUsername` with your actual Windows username.
 
 ### Configuration Details
 
@@ -46,21 +53,27 @@ notepad $env:LOCALAPPDATA\FitFileFaker\config.json
 - **product:** `edge1030` - High-end cycling computer
 - **serial_number:** Unique 10-digit identifier
 
-### Why Edge 1030?
+### Choosing a Device
 
-The Edge 1030 is configured because:
-- ✅ Primary activities are cycling (Coros Dura, Hammerhead Karoo 2)
-- ✅ Garmin's flagship bike computer
-- ✅ All cycling metrics calculate properly in Garmin Connect
-- ✅ Activities appear naturally in your Garmin ecosystem
+Select based on your primary activity type:
 
-### Alternative Devices for Cycling
+**Cycling:**
+- `edge1040` - Newest flagship bike computer (2024)
+- `edge1030` - High-end bike computer
+- `edge840` - Mid-range with solar
+- `edge530` - Performance-focused
 
-If you want to change the device:
-- **edge1040** - Newest flagship (2024)
-- **edge1030plus** - Updated version
-- **edge840** - Mid-range with solar
-- **edge530** - Performance-focused
+**Running:**
+- `forerunner965` - Premium running watch
+- `forerunner955` - Triathlon watch
+- `forerunner265` - AMOLED running watch
+
+**Multisport/Mixed Activities:**
+- `fenix8` - Latest multisport watch
+- `fenix7` - Outdoor multisport watch
+- `epix2` - AMOLED multisport watch
+
+Choose a device that matches your primary activity types for the most natural appearance in Garmin Connect.
 
 ## Testing Configuration
 
