@@ -20,5 +20,3 @@ $Config = @{
     MaxRetries = 3              # Future: retry failed uploads
     DelayBetweenFiles = 100     # Milliseconds delay between API calls
 }
-
-Export-ModuleMember -Variable Config
