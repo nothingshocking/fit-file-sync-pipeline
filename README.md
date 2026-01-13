@@ -61,6 +61,7 @@ intervals.icu → Download → Fit-File-Faker → Garmin Connect
 - **Windows 11** (or Windows 10)
 - **PowerShell 5.1** or later
 - **[Fit-File-Faker](https://github.com/jat255/Fit-File-Faker)** - Install via pipx: `pipx install fit-file-faker`
+  - See [Fit-File-Faker Setup Guide](docs/FIT-FILE-FAKER-SETUP.md) for detailed configuration
 - **intervals.icu account** with API key ([get here](https://intervals.icu/settings))
 - **Garmin Connect account** configured in Fit-File-Faker
 
