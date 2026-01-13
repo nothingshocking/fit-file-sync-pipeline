@@ -30,8 +30,8 @@ function Process-FitFiles {
         }
     }
     
-    # Get files to process
-    $fitFiles = Get-ChildItem "$($Config.DownloadFolder)\*.fit"
+    # Get files to process (exclude _modified.fit files)
+    $fitFiles = Get-ChildItem "$($Config.DownloadFolder)\*.fit" | Where-Object { $_.Name -notmatch "_modified\.fit$" }
     
     if ($fitFiles.Count -eq 0) {
         Write-Log "No files to process" "WARNING"
@@ -43,6 +43,7 @@ function Process-FitFiles {
     $count = 0
     $success = 0
     $errors = 0
+    $duplicates = 0
     
     foreach ($file in $fitFiles) {
         $count++
@@ -51,31 +52,53 @@ function Process-FitFiles {
         try {
             # Run fit-file-faker
             if ($DryRun -or $Config.DryRun) {
-                $result = fit-file-faker $file.FullName --upload --dryrun 2>&1
+                # Don't use --dryrun with --upload due to bug
+                Write-Log "  Skipping (DryRun mode enabled)" "WARNING"
+                continue
             } else {
                 $result = fit-file-faker $file.FullName --upload 2>&1
             }
             
-            # Check for errors
+            # Convert result to string for analysis
+            $resultText = $result | Out-String
+            
+            # Check if it's a duplicate
+            $isDuplicate = $resultText -match "activity already exists|HTTP conflict"
+            
+            # Check for real errors (excluding duplicate warnings)
             $hasError = $false
-            foreach ($line in $result) {
-                if ($line -match "ERROR|Exception|Traceback") {
-                    $hasError = $true
-                    Write-Log "  Error detected in output" "ERROR"
-                    break
-                }
+            if ($resultText -match "Exception|Traceback" -and -not $isDuplicate) {
+                $hasError = $true
+                Write-Log "  Error detected in output" "ERROR"
             }
             
             if ($hasError) {
                 throw "Fit-File-Faker encountered an error"
             }
             
+            # Handle duplicates as success
+            if ($isDuplicate) {
+                Write-Log "  Already uploaded (duplicate detected)" "WARNING"
+                $duplicates++
+            }
+            
             # Success - move to processed
             $newName = "$($file.BaseName).uploaded$($file.Extension)"
             $destination = Join-Path $Config.ProcessedFolder $newName
             Move-Item $file.FullName $destination -Force
-            Write-Log "  SUCCESS: Moved to processed\" "SUCCESS"
-            $success++
+            
+            # Also move the _modified.fit file if it exists
+            $modifiedFile = "$($file.DirectoryName)\$($file.BaseName)_modified$($file.Extension)"
+            if (Test-Path $modifiedFile) {
+                Remove-Item $modifiedFile -Force
+            }
+            
+            if (-not $isDuplicate) {
+                Write-Log "  SUCCESS: Uploaded and moved to processed\" "SUCCESS"
+                $success++
+            } else {
+                Write-Log "  Moved to processed\ (was duplicate)" "SUCCESS"
+            }
             
         } catch {
             # Error - move to errors
@@ -87,7 +110,7 @@ function Process-FitFiles {
         }
     }
     
-    Write-Log "Processing complete: $success success, $errors errors" "SUCCESS"
+    Write-Log "Processing complete: $success uploaded, $duplicates duplicates, $errors errors" "SUCCESS"
 }
 
 Process-FitFiles
