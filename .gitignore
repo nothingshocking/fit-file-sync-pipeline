@@ -1,0 +1,37 @@
+﻿# Configuration with secrets
+scripts/config.ps1
+
+# Data files
+data/
+logs/
+
+# Windows
+Thumbs.db
+desktop.ini
+*.lnk
+
+# PowerShell
+*.ps1~
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+
+# Archives
+*.zip
+*.gz
+*.7z
+
+# IDE
+.vscode/
+.idea/
+
+# Python (if you add any Python tools later)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
