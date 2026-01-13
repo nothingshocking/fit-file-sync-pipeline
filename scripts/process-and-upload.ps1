@@ -65,18 +65,23 @@ function Process-FitFiles {
             # Check if it's a duplicate
             $isDuplicate = $resultText -match "activity already exists|HTTP conflict"
             
-            # Check for real errors (excluding duplicate warnings)
-            $hasError = $false
-            if ($resultText -match "Exception|Traceback" -and -not $isDuplicate) {
+            # Check if upload succeeded
+            $uploadSuccess = $resultText -match "Uploading.*using garth" -or $isDuplicate
+            $hasException = $resultText -match "Traceback.*Exception"
+            
+            # Only mark as error if there's an exception AND upload didn't succeed
+            if ($hasException -and -not $uploadSuccess) {
                 $hasError = $true
-                Write-Log "  Error detected in output" "ERROR"
+                Write-Log "  Exception occurred during processing" "ERROR"
+            } else {
+                $hasError = $false
             }
             
             if ($hasError) {
                 throw "Fit-File-Faker encountered an error"
             }
             
-            # Handle duplicates as success
+            # Handle duplicates
             if ($isDuplicate) {
                 Write-Log "  Already uploaded (duplicate detected)" "WARNING"
                 $duplicates++
@@ -87,7 +92,7 @@ function Process-FitFiles {
             $destination = Join-Path $Config.ProcessedFolder $newName
             Move-Item $file.FullName $destination -Force
             
-            # Also move the _modified.fit file if it exists
+            # Also remove the _modified.fit file if it exists
             $modifiedFile = "$($file.DirectoryName)\$($file.BaseName)_modified$($file.Extension)"
             if (Test-Path $modifiedFile) {
                 Remove-Item $modifiedFile -Force
