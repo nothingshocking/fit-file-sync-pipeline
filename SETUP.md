@@ -45,7 +45,52 @@ Complete installation and configuration guide for the FIT File Sync Pipeline.
    - Sign up: https://connect.garmin.com
    - Note your username/email and password
 
+
 ---
+
+## ⚠️ Important: Connected Services and Duplicates
+
+### Understanding the Data Flow
+
+Your device (Coros, Hammerhead, etc.) syncs activities directly to multiple services:
+- Device → Strava
+- Device → Ride with GPS
+- Device → TrainingPeaks
+- Device → intervals.icu
+
+This pipeline adds: intervals.icu → Garmin Connect
+
+**The Problem:** If Garmin Connect also pushes to these services, they receive activities twice.
+
+### Check Your Garmin Settings Before Proceeding
+
+1. Go to Garmin Connect → Settings → Connected Apps
+2. Note which services receive automatic activity uploads
+
+**Services that handle duplicates automatically (safe):**
+- ✅ **Strava** - No action needed
+- ✅ **Ride with GPS** - No action needed
+
+**Services that will create duplicates (action required):**
+- ⚠️ **TrainingPeaks** - Must disable Garmin auto-sync
+- ⚠️ **intervals.icu** - Must disable Garmin auto-sync (if connected)
+- ⚠️ **Other services** - Test to verify
+
+### Required Action
+
+**For services that create duplicates:**
+1. Disable Garmin's auto-sync for those services
+2. Activities will continue to sync normally from your device
+3. You won't lose any data - just preventing the duplicate from Garmin
+
+**Important:** This is a current limitation of the pipeline. We're exploring better solutions, but for now, this workaround is required to prevent duplicates in affected services.
+
+See [Troubleshooting: Duplicate Activities](TROUBLESHOOTING.md#duplicate-activities-on-connected-services) for detailed information.
+
+---
+
+---
+
 
 ## Installation
 

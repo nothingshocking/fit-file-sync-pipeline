@@ -177,6 +177,7 @@ See [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for solutions to common issues
 - **intervals.icu required** - Must have activities in intervals.icu
 - **Garmin Connect account** - Required for uploads
 - **Original FIT files** - Only activities with original files can be processed
+- **⚠️ Duplicate activities on connected services** - Services connected to both your device AND Garmin Connect may receive duplicate activities. Services like Strava and Ride with GPS seem to handle this automatically, but others like TrainingPeaks require you to disable Garmin auto-sync. This is a known limitation requiring workarounds. See [Troubleshooting Guide](TROUBLESHOOTING.md#duplicate-activities-on-connected-services) for details.
 
 ## Contributing
 
