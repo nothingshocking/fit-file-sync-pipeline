@@ -142,6 +142,21 @@ fit-file-sync-pipeline/
     └── TROUBLESHOOTING.md            # Common issues
 ```
 
+## Project Documentation
+
+### For Users
+- [README](README.md) - Project overview and quick start
+- [SETUP](SETUP.md) - Complete installation guide
+- [TROUBLESHOOTING](TROUBLESHOOTING.md) - Common issues and solutions
+- [Fit-File-Faker Setup](docs/FIT-FILE-FAKER-SETUP.md) - Tool-specific configuration
+
+### For Developers
+- [PROJECT HISTORY](PROJECT-HISTORY.md) - Complete development history and context
+- [ARCHITECTURE](ARCHITECTURE.md) - Technical architecture and design decisions
+- [DEVELOPMENT NOTES](DEVELOPMENT-NOTES.md) - Quick reference for development
+- [CONTRIBUTING](CONTRIBUTING.md) - How to contribute
+- [ROADMAP](ROADMAP.md) - Future development plans
+
 ## How Fit-File-Faker Works
 
 [Fit-File-Faker](https://github.com/jat255/Fit-File-Faker) modifies FIT files to change device identification fields, making them appear as if they came from a Garmin device. This allows:
