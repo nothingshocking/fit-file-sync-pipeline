@@ -36,9 +36,10 @@ intervals.icu → Download → Fit-File-Faker → Garmin Connect
 - 🔧 **Device Transformation** - Uses Fit-File-Faker to make files Garmin-compatible
 - 📤 **Automatic Upload** - Sends processed files to Garmin Connect
 - 🔄 **Scheduled Sync** - Runs on a schedule to keep data current
-- 📝 **Detailed Logging** - Tracks all operations with timestamps
+- 📋 **Detailed Logging** - Tracks all operations with timestamps
 - ❌ **Error Handling** - Quarantines problematic files for manual review
 - 🔒 **Secure** - API keys stored locally, never committed to git
+- ⏸️ **Rate Limit Protection** - Detects Garmin rate limiting and retries automatically on next cycle
 
 ## Use Cases
 
@@ -60,7 +61,7 @@ intervals.icu → Download → Fit-File-Faker → Garmin Connect
 
 - **Windows 11** (or Windows 10)
 - **PowerShell 5.1** or later
-- **[Fit-File-Faker](https://github.com/jat255/Fit-File-Faker)** - Install via pipx: `pipx install fit-file-faker`
+- **[Fit-File-Faker](https://github.com/jat255/Fit-File-Faker)** v2.1.5+ - Install via pipx: `pipx install fit-file-faker`
   - See [Fit-File-Faker Setup Guide](docs/FIT-FILE-FAKER-SETUP.md) for detailed configuration
 - **intervals.icu account** with API key ([get here](https://intervals.icu/settings))
 - **Garmin Connect account** configured in Fit-File-Faker
@@ -79,10 +80,7 @@ Copy-Item scripts\config.template.ps1 scripts\config.ps1
 # 3. Edit config.ps1 with your settings
 notepad scripts\config.ps1
 
-# 4. Run initial test sync
-.\scripts\monitor-and-sync.ps1 -RunOnce -DryRun
-
-# 5. Run actual sync
+# 4. Run actual sync
 .\scripts\monitor-and-sync.ps1 -RunOnce
 ```
 
@@ -98,9 +96,6 @@ notepad scripts\config.ps1
 
 # Run complete sync cycle once
 .\scripts\monitor-and-sync.ps1 -RunOnce
-
-# Test mode (downloads and processes but doesn't upload)
-.\scripts\monitor-and-sync.ps1 -RunOnce -DryRun
 ```
 
 ### Automated Monitoring
@@ -116,12 +111,15 @@ notepad scripts\config.ps1
 Edit `scripts\config.ps1` to customize:
 ```powershell
 $Config = @{
-    IntervalsApiKey = "your_api_key"      # From intervals.icu/settings
-    SyncIntervalMinutes = 60               # How often to check for new files
-    LookbackDays = 7                       # How far back to check each sync
-    DryRun = $false                        # Set true for testing
+    IntervalsApiKey     = "your_api_key"          # From intervals.icu/settings
+    FitFileFakerPath    = "C:\Users\YourUsername\pipx\venvs\fit-file-faker\Scripts\fit-file-faker.exe"
+    SyncIntervalMinutes = 60                       # How often to check for new files
+    LookbackDays        = 7                        # How far back to check each sync
+    DryRun              = $false                   # Set true for testing
 }
 ```
+
+**Note:** Always set `FitFileFakerPath` to the full path of your Fit-File-Faker executable to avoid conflicts with other installations.
 
 ## Folder Structure
 ```
@@ -171,7 +169,7 @@ fit-file-sync-pipeline/
 ## Supported Devices
 
 Any device that produces FIT files and syncs to intervals.icu:
-- ✅ Coros (Pace, Apex, Vertix, etc.)
+- ✅ Coros (Pace, Apex, Vertix, Dura, etc.)
 - ✅ Hammerhead (Karoo)
 - ✅ Wahoo (ELEMNT, RIVAL)
 - ✅ Polar (Vantage, Grit, Pacer)
@@ -180,8 +178,9 @@ Any device that produces FIT files and syncs to intervals.icu:
 
 ## Troubleshooting
 
-See [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for solutions to common issues:
-- Authentication errors
+See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for solutions to common issues including:
+- Authentication errors and Garmin rate limiting
+- Conflicting Fit-File-Faker installations
 - Malformed FIT files
 - Upload failures
 - Scheduling problems
@@ -192,7 +191,8 @@ See [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for solutions to common issues
 - **intervals.icu required** - Must have activities in intervals.icu
 - **Garmin Connect account** - Required for uploads
 - **Original FIT files** - Only activities with original files can be processed
-- **⚠️ Duplicate activities on connected services** - Services connected to both your device AND Garmin Connect may receive duplicate activities. Services like Strava and Ride with GPS seem to handle this automatically, but others like TrainingPeaks require you to disable Garmin auto-sync. This is a known limitation requiring workarounds. See [Troubleshooting Guide](TROUBLESHOOTING.md#duplicate-activities-on-connected-services) for details.
+- **⚠️ Coros Dura gear assignment** - Activities from the Coros Dura upload successfully but show no gear in Garmin Connect due to a non-standard FIT file format. Bug reported to Fit-File-Faker maintainer. Training metrics are unaffected.
+- **⚠️ Duplicate activities on connected services** - Services connected to both your device AND Garmin Connect may receive duplicate activities. Services like Strava and Ride with GPS handle this automatically, but others like TrainingPeaks require you to disable Garmin auto-sync. See [Troubleshooting Guide](TROUBLESHOOTING.md#duplicate-activities-on-connected-services) for details.
 
 ## Contributing
 
@@ -207,9 +207,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 - [ ] Linux/Mac support (bash scripts)
 - [ ] Direct integration with other platforms (Strava, TrainingPeaks)
-- [ ] Retry logic for failed uploads
+- [ ] Retry logic with exponential backoff
 - [ ] Web dashboard for monitoring
 - [ ] Docker container option
+- [ ] Resolve Coros Dura gear assignment (pending Fit-File-Faker fix)
 
 ## Related Projects
 
@@ -233,4 +234,4 @@ This tool is for personal use. Ensure you comply with the terms of service for i
 
 ---
 
-**Questions?** Open an [issue](https://github.com/yourusername/fit-file-sync-pipeline/issues) or check [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)
+**Questions?** Open an [issue](https://github.com/yourusername/fit-file-sync-pipeline/issues) or check [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
