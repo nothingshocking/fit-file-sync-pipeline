@@ -490,3 +490,41 @@ For someone wanting to build something similar:
 *Document Version: 1.0*
 *Last Updated: February 19, 2026*
 *Project Status: Production (v1.1.0)*
+
+---
+
+## Phase 6: Maintenance and Compatibility Updates (May 2026)
+
+### Issues Discovered and Resolved
+
+**Issue #7: Conflicting Fit-File-Faker Installations**
+- **Problem:** Two versions of Fit-File-Faker installed simultaneously â€” one via pipx (working) at `C:\Users\chris\pipx\venvs\fit-file-faker\Scripts\` and one at `c:\users\chris\.local\bin\` (broken, returning `ModuleNotFoundError: No module named 'app'`). PowerShell resolved the broken one when using the plain `fit-file-faker` command, causing all pipeline uploads to fail silently.
+- **Solution:** Added `FitFileFakerPath` to `config.ps1` with the full path to the correct executable. Updated `process-and-upload.ps1` to call `& $Config.FitFileFakerPath` instead of `fit-file-faker`.
+
+**Issue #8: Garmin Rate Limiting (429 Errors)**
+- **Problem:** Repeated programmatic login attempts triggered Garmin's per-account rate limiter. Once triggered, it persisted for many hours regardless of IP or network changes. The pipeline continued running hourly, resetting the rate limit timer on every attempt and preventing any uploads.
+- **Root Cause:** Fit-File-Faker had no stored auth token (`garmin_tokens.json` missing), so every run performed a full login sequence. Multiple failed login attempts during troubleshooting compounded the issue.
+- **Solution:** 
+  - Added rate limit detection to `process-and-upload.ps1` â€” files stay in `downloaded/` when rate limited instead of moving to `errors/`, and remaining files in the batch are skipped to avoid further attempts
+  - Disabled scheduled task during rate limit periods to stop the timer from resetting
+  - After rate limit cleared, `widget+cffi` login strategy in Fit-File-Faker v2.1.5 successfully authenticated and created the token file
+  - Token now stored at `C:\Users\chris\AppData\Local\FitFileFaker\.garmin_default\garmin_tokens.json` â€” future runs use the token and skip full login
+
+**Issue #9: False Error Detection (Fit-File-Faker v2.1.5 Output Format Change)**
+- **Problem:** Fit-File-Faker v2.1.5 changed its output format. The pipeline's success detection string `"Uploading.*using garth"` no longer matched, and the duplicate detection string `"HTTP conflict"` didn't match the new `"Received HTTP conflict"` format. Additionally, the exception detection pattern `"Traceback|Exception|Error"` was too broad â€” the word "Error" matched file paths containing "fit_editor", causing every successful upload to be flagged as an error and moved to `errors/`.
+- **Solution:** Updated all three detection strings in `process-and-upload.ps1`:
+  - Duplicate: added `"Received HTTP conflict"`
+  - Success: added `"Uploading.*to Garmin Connect"` and `"Successfully uploaded"`
+  - Exception: replaced broad `"Error"` with specific `"GarminConnectConnectionError|Login failed"`
+
+**Issue #10: Coros Dura Activities Show No Gear in Garmin Connect**
+- **Problem:** Activities from the Coros Dura upload successfully but show no gear assignment in Garmin Connect. Hammerhead Karoo 2 activities are unaffected.
+- **Root Cause:** The Coros Dura writes a non-standard `device_info` record with a malformed field (`uint32` with size 1 instead of 4). Fit-File-Faker's parser aborts mid-record at this field. The `file_id` record is fully rewritten to Garmin, but `device_info` (which Garmin uses for gear association) retains Coros branding. Training metrics are unaffected.
+- **Status:** Bug report filed with Fit-File-Faker maintainer on GitHub with original and modified FIT files attached. Awaiting fix.
+- **Workaround:** Manually assign gear to Coros Dura activities in Garmin Connect after upload.
+
+### Version Released
+- **v1.2.0** - May 2026
+
+### Total Activities Processed
+- ~150+ activities across all devices (updated from ~103 at v1.1.0)

@@ -1,8 +1,34 @@
-﻿# Roadmap
+# Roadmap
 
-## Current Status: v1.1.0
+## Current Status: v1.2.0
 
 The PowerShell-based pipeline is **production ready** and **fully functional** for Windows users.
+
+---
+
+## Changelog
+
+### v1.2.0 (May 2026)
+- **Fix:** Updated `process-and-upload.ps1` for Fit-File-Faker v2.1.5 output format compatibility
+- **Fix:** Resolved conflicting Fit-File-Faker installations by using full executable path via `$Config.FitFileFakerPath`
+- **Add:** Garmin rate limit detection — files stay in `downloaded/` instead of moving to `errors/` when rate limited, and retry automatically on next cycle
+- **Fix:** Tightened exception detection to prevent false positives from file paths containing the word "Error"
+- **Fix:** Updated duplicate detection to match new Fit-File-Faker v2.1.5 output strings
+- **Add:** `FitFileFakerPath` config entry for explicit executable path management
+- **Docs:** Added troubleshooting sections for rate limiting, conflicting installations, Coros Dura gear issue, and false error detection
+- **Known issue:** Coros Dura activities upload successfully but show no gear in Garmin Connect due to non-standard `device_info` records — bug reported to Fit-File-Faker maintainer
+
+### v1.1.0 (February 2026)
+- Automated sync via Windows Task Scheduler
+- Continuous monitoring mode
+- Configurable sync interval
+
+### v1.0.0 (February 2026)
+- Initial release
+- Download from intervals.icu API
+- Process with Fit-File-Faker and upload to Garmin Connect
+- Three-folder file organization (downloaded/processed/errors)
+- Detailed logging
 
 ---
 
@@ -26,6 +52,12 @@ A Python-based rewrite to address current limitations and expand functionality:
 - More sophisticated duplicate detection
 
 **Status:** Future consideration - contributions and design input welcome!
+
+### Short-term (v1.x)
+- [ ] Email notifications on errors
+- [ ] Retry logic with exponential backoff
+- [ ] Activity type filtering (cycling only, etc.)
+- [ ] Resolve Coros Dura gear assignment once Fit-File-Faker fix is released
 
 ---
 
