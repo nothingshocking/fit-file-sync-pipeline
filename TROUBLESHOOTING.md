@@ -835,3 +835,107 @@ Get-ChildItem C:\Users\chris\fit-file-sync-pipeline\data\errors\*.fit |
         Move-Item $_.FullName "C:\Users\chris\fit-file-sync-pipeline\data\downloaded\$($_.Name)"
     }
 ```
+---
+
+## Garmin Rate Limiting (429 Errors)
+
+### Symptoms
+- Pipeline completes in under 2 seconds with all files moving to `errors/`
+- Log shows `Exception occurred during processing` for every file
+- Running Fit-File-Faker manually shows repeated `429` errors across all login strategies
+
+### Why It Happens
+Garmin rate limits programmatic login attempts **per account**, not per IP address. Once triggered, changing your network or IP will not help. The rate limit is typically triggered by repeated failed login attempts in a short period.
+
+**Important:** The rate limit can persist for several hours or longer. Every additional failed login attempt resets the timer.
+
+### Solution
+1. **Disable the scheduled task immediately** to stop further login attempts:
+```powershell
+Disable-ScheduledTask -TaskName "FIT File Sync Pipeline"
+```
+
+2. **Wait** — do not attempt further uploads until the rate limit clears. Files will remain safely in `downloaded/` and retry automatically.
+
+3. **Test when ready** using the full path to confirm the rate limit has cleared:
+```powershell
+C:\Users\chris\pipx\venvs\fit-file-faker\Scripts\fit-file-faker.exe "C:\Users\chris\fit-file-sync-pipeline\data\downloaded\your-file.fit" --upload
+```
+
+4. **Re-enable the task** once a manual upload succeeds:
+```powershell
+Enable-ScheduledTask -TaskName "FIT File Sync Pipeline"
+```
+
+### Token Storage
+Fit-File-Faker stores an auth token after the first successful login at:
+```
+C:\Users\chris\AppData\Local\FitFileFaker\.garmin_default\garmin_tokens.json
+```
+Once this token exists, future runs skip the full login process, significantly reducing the chance of triggering rate limits. Verify the token exists:
+```powershell
+Test-Path "C:\Users\chris\AppData\Local\FitFileFaker\.garmin_default\garmin_tokens.json"
+```
+
+---
+
+## Conflicting Fit-File-Faker Installations
+
+### Symptoms
+- Pipeline errors on every file even though manual uploads with the full path work fine
+- `fit-file-faker --version` returns `ModuleNotFoundError: No module named 'app'`
+
+### Why It Happens
+Two versions of Fit-File-Faker installed simultaneously — one via pipx (working) and one at `c:\users\chris\.local\bin\` (broken). PowerShell resolves the broken one when using the plain `fit-file-faker` command.
+
+### Solution
+The pipeline uses the full path to the correct executable via `$Config.FitFileFakerPath` in `config.ps1`. Always use the full path when running manually:
+```powershell
+C:\Users\chris\pipx\venvs\fit-file-faker\Scripts\fit-file-faker.exe
+```
+
+---
+
+## Coros Dura Activities Show No Gear in Garmin Connect
+
+### Symptoms
+- Activities recorded on the Coros Dura upload successfully to Garmin Connect
+- No gear (bike) is assigned to the activity
+- Activities from Hammerhead Karoo 2 show gear correctly
+
+### Why It Happens
+The Coros Dura writes a non-standard `device_info` record with a malformed field (`uint32` with size 1 instead of 4). This causes Fit-File-Faker's parser to abort mid-record. The `file_id` record is fully rewritten to Garmin, but `device_info` (which Garmin uses for gear assignment) retains Coros branding.
+
+### Current Status
+A bug report has been filed with the Fit-File-Faker maintainer. Training metrics (VO2 max, Training Load, etc.) are unaffected — only gear association is missing.
+
+### Workaround
+Manually assign gear to Coros Dura activities in Garmin Connect after upload.
+
+---
+
+## Activities Uploaded Successfully But Moved to errors/
+
+### Symptoms
+- Activities appear correctly in Garmin Connect
+- Pipeline log shows `Exception occurred during processing` and files are in `errors/`
+
+### Why It Happens
+Fit-File-Faker v2.1.5 changed its output format. The old success/duplicate detection strings no longer match the new output.
+
+### Solution
+Ensure your `process-and-upload.ps1` contains the updated detection strings:
+```powershell
+$isDuplicate = $resultText -match "activity already exists|HTTP conflict|Received HTTP conflict"
+$uploadSuccess = $resultText -match "Uploading.*using garth|Uploading.*to Garmin Connect|Successfully uploaded" -or $isDuplicate
+$hasException = $resultText -match "Traceback|GarminConnectConnectionError|Login failed"
+```
+
+To move files from errors back to downloaded for reprocessing:
+```powershell
+Get-ChildItem C:\Users\chris\fit-file-sync-pipeline\data\errors\*.fit | 
+    Where-Object { $_.Name -notmatch "_modified" } | 
+    ForEach-Object {
+        Move-Item $_.FullName "C:\Users\chris\fit-file-sync-pipeline\data\downloaded\$($_.Name)"
+    }
+```

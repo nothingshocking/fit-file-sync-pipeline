@@ -346,3 +346,95 @@ Activities from the Coros Dura upload successfully but show no gear in Garmin Co
 
 **Garmin Rate Limiting**
 Garmin rate limits programmatic login attempts per account. Once triggered, it can persist for several hours regardless of IP or network changes. Mitigated by stored auth token and rate limit detection in the pipeline. See TROUBLESHOOTING.md for full details.
+---
+
+## Updates - May 2026
+
+### Fit-File-Faker Executable Path (v2.1.5+)
+
+Two conflicting installations of Fit-File-Faker were discovered. The pipeline now uses the full path
+to the correct executable via config rather than relying on PATH resolution.
+
+**config.ps1** â€” add this entry:
+```powershell
+FitFileFakerPath = "C:\Users\chris\pipx\venvs\fit-file-faker\Scripts\fit-file-faker.exe"
+```
+
+Always use the full path for manual testing:
+```powershell
+C:\Users\chris\pipx\venvs\fit-file-faker\Scripts\fit-file-faker.exe "path\to\file.fit" --upload
+```
+
+### Updated Detection Strings (v2.1.5 output format changes)
+
+Fit-File-Faker v2.1.5 changed its output format. Updated detection patterns in `process-and-upload.ps1`:
+
+```powershell
+# Duplicate detection
+$isDuplicate = $resultText -match "activity already exists|HTTP conflict|Received HTTP conflict"
+
+# Success detection (supports both old and new output formats)
+$uploadSuccess = $resultText -match "Uploading.*using garth|Uploading.*to Garmin Connect|Successfully uploaded" -or $isDuplicate
+
+# Exception detection (tightened to avoid false positives from file paths containing "Error")
+$hasException = $resultText -match "Traceback|GarminConnectConnectionError|Login failed"
+```
+
+### Rate Limit Handling
+
+Added Garmin rate limit detection to `process-and-upload.ps1`. When a 429 rate limit is detected:
+- The current file stays in `downloaded/` instead of moving to `errors/`
+- Remaining files in the batch are skipped to avoid further login attempts
+- A warning is logged with clear messaging
+- Files automatically retry on the next scheduled cycle
+
+Rate limit detection pattern:
+```powershell
+$isRateLimited = $resultText -match "429|rate limit|All login strategies exhausted|GarminConnectConnectionError"
+```
+
+### Garmin Auth Token
+
+After the first successful login, Fit-File-Faker stores an auth token at:
+```
+C:\Users\chris\AppData\Local\FitFileFaker\.garmin_default\garmin_tokens.json
+```
+Subsequent runs use the stored token and skip the full login, reducing rate limit risk.
+Verify the token exists:
+```powershell
+Test-Path "C:\Users\chris\AppData\Local\FitFileFaker\.garmin_default\garmin_tokens.json"
+```
+
+### Manual Testing Commands (updated)
+
+```powershell
+# Test single file manually (always use full path)
+C:\Users\chris\pipx\venvs\fit-file-faker\Scripts\fit-file-faker.exe "C:\Users\chris\fit-file-sync-pipeline\data\downloaded\filename.fit" --upload
+
+# Process only (no upload) - useful when rate limited
+C:\Users\chris\pipx\venvs\fit-file-faker\Scripts\fit-file-faker.exe "path\to\file.fit" -p
+
+# Move error files back to downloaded for reprocessing
+Get-ChildItem C:\Users\chris\fit-file-sync-pipeline\data\errors\*.fit | 
+    Where-Object { $_.Name -notmatch "_modified" } | 
+    ForEach-Object {
+        Move-Item $_.FullName "C:\Users\chris\fit-file-sync-pipeline\data\downloaded\$($_.Name)"
+    }
+
+# Check if auth token exists
+Test-Path "C:\Users\chris\AppData\Local\FitFileFaker\.garmin_default\garmin_tokens.json"
+
+# Disable scheduled task during troubleshooting
+Disable-ScheduledTask -TaskName "FIT File Sync Pipeline"
+
+# Re-enable scheduled task
+Enable-ScheduledTask -TaskName "FIT File Sync Pipeline"
+```
+
+### Known Issues
+
+**Coros Dura - No Gear Assignment**
+Activities from the Coros Dura upload successfully but show no gear in Garmin Connect. Root cause is a non-standard `device_info` record in Coros FIT files that causes Fit-File-Faker's parser to abort before rewriting device identity fields. Bug reported to Fit-File-Faker maintainer (GitHub issue filed May 2026). Training metrics are unaffected.
+
+**Garmin Rate Limiting**
+Garmin rate limits programmatic login attempts per account. Once triggered, it can persist for several hours regardless of IP or network changes. Mitigated by stored auth token and rate limit detection in the pipeline. See TROUBLESHOOTING.md for full details.
