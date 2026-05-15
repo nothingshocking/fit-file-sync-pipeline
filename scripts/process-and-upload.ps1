@@ -34,7 +34,7 @@ function Process-FitFiles {
     $fitFiles = Get-ChildItem "$($Config.DownloadFolder)\*.fit" | Where-Object { $_.Name -notmatch "_modified\.fit$" }
     
     if ($fitFiles.Count -eq 0) {
-        Write-Log "No files to process" "WARNING"
+        Write-Log "No files to process - skipping Garmin upload" "INFO"
         return
     }
     
@@ -44,30 +44,47 @@ function Process-FitFiles {
     $success = 0
     $errors = 0
     $duplicates = 0
+    $rateLimited = $false
     
     foreach ($file in $fitFiles) {
         $count++
         Write-Log "[$count/$($fitFiles.Count)] Processing: $($file.Name)"
+
+        # If we already hit a rate limit this run, skip remaining files
+        if ($rateLimited) {
+            Write-Log "  Skipping - Garmin rate limit active, will retry next cycle" "WARNING"
+            continue
+        }
         
         try {
-            # Run fit-file-faker
+            # Run fit-file-faker using full path from config
             if ($DryRun -or $Config.DryRun) {
                 # Don't use --dryrun with --upload due to bug
                 Write-Log "  Skipping (DryRun mode enabled)" "WARNING"
                 continue
             } else {
-                $result = fit-file-faker $file.FullName --upload 2>&1
+                $result = & $Config.FitFileFakerPath $file.FullName --upload 2>&1
             }
             
             # Convert result to string for analysis
             $resultText = $result | Out-String
+
+            # Check for rate limiting first - do not move file if rate limited
+            $isRateLimited = $resultText -match "429|rate limit|All login strategies exhausted|GarminConnectConnectionError"
+            if ($isRateLimited) {
+                $rateLimited = $true
+                Write-Log "  Garmin rate limit detected - file will remain in downloaded for next cycle" "WARNING"
+                continue
+            }
             
             # Check if it's a duplicate
-            $isDuplicate = $resultText -match "activity already exists|HTTP conflict"
+            $isDuplicate = $resultText -match "activity already exists|HTTP conflict|Received HTTP conflict"
             
-            # Check if upload succeeded
-            $uploadSuccess = $resultText -match "Uploading.*using garth" -or $isDuplicate
-            $hasException = $resultText -match "Traceback.*Exception"
+            # Check if upload succeeded (supports both old and new Fit-File-Faker output formats)
+            $uploadSuccess = $resultText -match "Uploading.*using garth|Uploading.*to Garmin Connect|Successfully uploaded" -or $isDuplicate
+
+            # Only flag as error for genuine failures, not warnings or benign output
+            $hasException = $resultText -match "Traceback|GarminConnectConnectionError|Login failed"
             
             # Only mark as error if there's an exception AND upload didn't succeed
             if ($hasException -and -not $uploadSuccess) {
@@ -114,8 +131,12 @@ function Process-FitFiles {
             $errors++
         }
     }
-    
-    Write-Log "Processing complete: $success uploaded, $duplicates duplicates, $errors errors" "SUCCESS"
+
+    if ($rateLimited) {
+        Write-Log "Sync incomplete - Garmin rate limit active. $success uploaded, $duplicates duplicates, $errors errors. Remaining files will retry next cycle." "WARNING"
+    } else {
+        Write-Log "Processing complete: $success uploaded, $duplicates duplicates, $errors errors" "SUCCESS"
+    }
 }
 
 Process-FitFiles
