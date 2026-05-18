@@ -775,6 +775,47 @@ Test-Path "C:\Users\chris\AppData\Local\FitFileFaker\.garmin_default\garmin_toke
 
 ---
 
+
+Pipeline Reports Rate Limit Immediately (False Positive)
+Symptoms
+Pipeline reports Garmin rate limit on the very first file of a run
+All remaining files are skipped with "rate limit active" warning
+The scheduled task has not run in several days (a true rate limit is unlikely)
+Running Fit-File-Faker manually against the same file works correctly
+Log shows the cycle completing in under 20 seconds
+Why It Happens
+Two separate bugs interact to produce this false positive:
+Bug 1 — UnicodeEncodeError on duplicate detection:
+When Fit-File-Faker detects a duplicate activity (HTTP 409 from Garmin), it attempts to log a warning containing a ❌ emoji. On Windows, if the console is using cp1252 encoding (common in Task Scheduler sessions), this triggers a `UnicodeEncodeError` inside Rich's logging handler. The result is a `--- Logging error ---` block with a full Python traceback printed to stderr — even though the upload itself completed and the 409 was handled correctly.
+Bug 2 — Overly broad rate limit detection pattern:
+`GarminConnectConnectionError` is a generic exception class in the garminconnect library. Fit-File-Faker raises it for both HTTP 409 Duplicate Activity responses and genuine connection/rate limit errors. A previous version of `process-and-upload.ps1` included `GarminConnectConnectionError` in the rate limit detection pattern. This caused every duplicate detection to be misidentified as a rate limit — the file stayed in `downloaded/` and all remaining files were skipped.
+Together: a duplicate 409 → UnicodeEncodeError traceback containing `GarminConnectConnectionError` → matched by rate limit pattern → false rate limit flagged.
+Solution
+Ensure `process-and-upload.ps1` uses the corrected detection patterns (v1.3.0+):
+```powershell
+# Rate limit: specific patterns only
+# GarminConnectConnectionError intentionally excluded - it fires on 409 duplicates too
+$isRateLimited = $resultText -match "429|rate limit|All login strategies exhausted"
+
+# Duplicate: includes API Error 409 / Duplicate Activity to catch the UnicodeError crash path
+$isDuplicate = $resultText -match "activity already exists|HTTP conflict|Received HTTP conflict|API Error 409|Duplicate Activity"
+
+# Exception: narrow patterns only
+$hasException = $resultText -match "Login failed"
+```
+If you are running an older version, replace `process-and-upload.ps1` with the v1.3.0 version from the repository.
+Diagnosing the Issue
+To see exactly what Fit-File-Faker is outputting (and what the patterns are matching against), run this manually:
+```powershell
+. "C:\Users\chris\fit-file-sync-pipeline\scripts\config.ps1"
+$result = & $Config.FitFileFakerPath "C:\Users\chris\fit-file-sync-pipeline\data\downloaded\your-file.fit" --upload 2>&1
+$result | Out-String
+```
+If the output contains `API Error 409` and `Duplicate Activity`, the file was already uploaded and this is the false positive scenario. If the output contains `429` or `All login strategies exhausted`, it is a genuine rate limit — see the Garmin Rate Limiting section.
+Recovering Stuck Files
+If files are stuck in `downloaded/` due to this false positive, they will process correctly once the detection patterns are updated — no manual intervention needed. Just re-enable the scheduled task and let t
+
+
 ## Conflicting Fit-File-Faker Installations
 
 ### Symptoms

@@ -69,24 +69,32 @@ function Process-FitFiles {
             # Convert result to string for analysis
             $resultText = $result | Out-String
 
-            # Check for rate limiting first - do not move file if rate limited
-            $isRateLimited = $resultText -match "429|rate limit|All login strategies exhausted|GarminConnectConnectionError"
+            # Check for rate limiting - use specific patterns only.
+            # GarminConnectConnectionError is intentionally excluded here because it is also
+            # raised for 409 Duplicate Activity responses, which are not rate limit errors.
+            $isRateLimited = $resultText -match "429|rate limit|All login strategies exhausted"
             if ($isRateLimited) {
                 $rateLimited = $true
                 Write-Log "  Garmin rate limit detected - file will remain in downloaded for next cycle" "WARNING"
                 continue
             }
             
-            # Check if it's a duplicate
-            $isDuplicate = $resultText -match "activity already exists|HTTP conflict|Received HTTP conflict"
+            # Check if it's a duplicate.
+            # Includes "API Error 409|Duplicate Activity" to catch cases where Fit-File-Faker
+            # crashes with a UnicodeEncodeError while logging the duplicate warning - the 409
+            # detail still appears in the traceback output and can be matched here.
+            $isDuplicate = $resultText -match "activity already exists|HTTP conflict|Received HTTP conflict|API Error 409|Duplicate Activity"
             
             # Check if upload succeeded (supports both old and new Fit-File-Faker output formats)
             $uploadSuccess = $resultText -match "Uploading.*using garth|Uploading.*to Garmin Connect|Successfully uploaded" -or $isDuplicate
 
-            # Only flag as error for genuine failures, not warnings or benign output
-            $hasException = $resultText -match "Traceback|GarminConnectConnectionError|Login failed"
+            # Only flag genuine login/connection failures as exceptions.
+            # "GarminConnectConnectionError" is excluded because it also appears on 409 responses
+            # (handled above as duplicates). "Traceback" alone is not sufficient - a traceback
+            # can appear during the emoji logging crash on duplicate detection, which is harmless.
+            $hasException = $resultText -match "Login failed"
             
-            # Only mark as error if there's an exception AND upload didn't succeed
+            # Only mark as error if there's a genuine exception AND upload didn't succeed
             if ($hasException -and -not $uploadSuccess) {
                 $hasError = $true
                 Write-Log "  Exception occurred during processing" "ERROR"

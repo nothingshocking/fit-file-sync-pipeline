@@ -1,12 +1,25 @@
 # Roadmap
 
-## Current Status: v1.2.0
+## Current Status: v1.3.0
 
 The PowerShell-based pipeline is **production ready** and **fully functional** for Windows users.
 
 ---
 
 ## Changelog
+
+### v1.3.0 (May 2026)
+- **Fix:** Corrected false rate limit detection caused by `GarminConnectConnectionError`
+  appearing in duplicate activity (HTTP 409) tracebacks
+- **Fix:** Added `API Error 409|Duplicate Activity` to duplicate detection pattern to catch
+  cases where Fit-File-Faker crashes with a `UnicodeEncodeError` while logging the duplicate
+  warning (❌ emoji, cp1252 encoding incompatibility on Windows)
+- **Fix:** Removed `Traceback` from exception detection — it is not a reliable error signal
+  because it also appears in the harmless UnicodeEncodeError crash during duplicate logging
+- **Fix:** Narrowed exception detection to `Login failed` only
+- **Docs:** Updated DEVELOPMENT-NOTES.md with corrected detection patterns and explanation
+- **Docs:** Added troubleshooting section for false rate limit false positives
+
 
 ### v1.2.0 (May 2026)
 - **Fix:** Updated `process-and-upload.ps1` for Fit-File-Faker v2.1.5 output format compatibility
