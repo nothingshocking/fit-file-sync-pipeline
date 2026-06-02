@@ -26,7 +26,6 @@ function Download-IntervalsFits {
     param([string]$Start, [string]$End)
     
     Write-Log "=== Starting Download from intervals.icu ===" "INFO"
-    Write-Log "Date range: $Start to $End"
     
     # Ensure folders exist
     @($Config.DownloadFolder, $Config.LogFolder) | ForEach-Object {
@@ -39,8 +38,14 @@ function Download-IntervalsFits {
     $base64Auth = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes("API_KEY:$($Config.IntervalsApiKey)"))
     $headers = @{ Authorization = "Basic $base64Auth" }
     
-    # Fetch activities
-    $url = "https://intervals.icu/api/v1/athlete/0/activities?oldest=$Start&newest=$End"
+    # Build URL - omit newest when not specified so API defaults to "now"
+    if ($End) {
+        $url = "https://intervals.icu/api/v1/athlete/0/activities?oldest=$Start&newest=$End"
+        Write-Log "Date range: $Start to $End"
+    } else {
+        $url = "https://intervals.icu/api/v1/athlete/0/activities?oldest=$Start"
+        Write-Log "Date range: $Start to now"
+    }
     
     try {
         $activities = Invoke-RestMethod -Uri $url -Headers $headers
@@ -64,9 +69,16 @@ function Download-IntervalsFits {
             $date = $activity.start_date_local.Substring(0,10)
             $outputFile = "$($Config.DownloadFolder)\$date-$activityId.fit"
             
-            # Skip if already exists
+            # Skip if already exists in downloaded folder
             if ((Test-Path $outputFile) -and -not $Force) {
-                Write-Log "[$count/$($activitiesWithFiles.Count)] Skipping $activityId (already exists)" "WARNING"
+                Write-Log "[$count/$($activitiesWithFiles.Count)] Skipping $activityId (already exists)" "INFO"
+                continue
+            }
+
+            # Skip if already processed
+            $processedFile = "$($Config.ProcessedFolder)\$date-$activityId.uploaded.fit"
+            if ((Test-Path $processedFile) -and -not $Force) {
+                Write-Log "[$count/$($activitiesWithFiles.Count)] Skipping $activityId (already processed)" "INFO"
                 continue
             }
             
@@ -104,8 +116,7 @@ function Download-IntervalsFits {
 if (-not $OldestDate) {
     $OldestDate = (Get-Date).AddDays(-$Config.LookbackDays).ToString("yyyy-MM-dd")
 }
-if (-not $NewestDate) {
-    $NewestDate = (Get-Date).ToString("yyyy-MM-dd")
-}
 
+# Pass NewestDate only if explicitly provided - omitting it lets the API default to "now"
+# and avoids midnight truncation that causes same-day activities to be missed
 Download-IntervalsFits -Start $OldestDate -End $NewestDate
