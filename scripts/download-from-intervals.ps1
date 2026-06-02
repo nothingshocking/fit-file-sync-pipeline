@@ -53,7 +53,8 @@ function Download-IntervalsFits {
         
         # Log all activity IDs for diagnostics
         if ($activities.Count -gt 0) {
-            $activityIds = $activities | Select-Object -ExpandProperty id -join ', '
+            $activityIdsList = $activities | Select-Object -ExpandProperty id
+            $activityIds = [string]::Join(', ', $activityIdsList)
             Write-Log "Activity IDs: $activityIds"
         }
         
@@ -63,7 +64,8 @@ function Download-IntervalsFits {
         # Log activities without file_type (diagnostics for lazy indexing issues)
         $activitiesWithoutFiles = $activities | Where-Object { $_.file_type -eq $null -or $_.file_type -eq "" }
         if ($activitiesWithoutFiles.Count -gt 0) {
-            $missingFileIds = $activitiesWithoutFiles | Select-Object -ExpandProperty id -join ', '
+            $missingFileIdsList = $activitiesWithoutFiles | Select-Object -ExpandProperty id
+            $missingFileIds = [string]::Join(', ', $missingFileIdsList)
             Write-Log "Activities WITHOUT file_type (cannot download): $missingFileIds" "WARNING"
         }
         
