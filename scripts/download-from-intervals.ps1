@@ -49,10 +49,23 @@ function Download-IntervalsFits {
     
     try {
         $activities = Invoke-RestMethod -Uri $url -Headers $headers
-        Write-Log "Found $($activities.Count) activities"
+        Write-Log "API response: $($activities.Count) total activities"
+        
+        # Log all activity IDs for diagnostics
+        if ($activities.Count -gt 0) {
+            $activityIds = $activities | Select-Object -ExpandProperty id -join ', '
+            Write-Log "Activity IDs: $activityIds"
+        }
         
         $activitiesWithFiles = $activities | Where-Object { $_.file_type -ne $null -and $_.file_type -ne "" }
         Write-Log "Activities with files: $($activitiesWithFiles.Count)"
+        
+        # Log activities without file_type (diagnostics for lazy indexing issues)
+        $activitiesWithoutFiles = $activities | Where-Object { $_.file_type -eq $null -or $_.file_type -eq "" }
+        if ($activitiesWithoutFiles.Count -gt 0) {
+            $missingFileIds = $activitiesWithoutFiles | Select-Object -ExpandProperty id -join ', '
+            Write-Log "Activities WITHOUT file_type (cannot download): $missingFileIds" "WARNING"
+        }
         
         if ($activitiesWithFiles.Count -eq 0) {
             Write-Log "No activities with files found" "WARNING"
